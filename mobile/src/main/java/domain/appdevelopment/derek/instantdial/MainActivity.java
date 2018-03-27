@@ -2,6 +2,7 @@ package domain.appdevelopment.derek.instantdial;
 
 import android.Manifest;
 import android.content.ContentResolver;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -10,16 +11,22 @@ import android.os.AsyncTask;
 import android.provider.ContactsContract;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.ContextMenu;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -48,13 +55,25 @@ public class MainActivity extends AppCompatActivity
      * The array adapter for the present autocomplete conditions.
      */
     private static ArrayAdapter<String> adp;
+    /**
+     * The person identified as a contact.
+     */
+    private Person per;
+    /**
+     * The reference to the pop-up menu.
+     */
+    private Menu pop_up;
+    /**
+     * The state of the pop_up, whether for dial or email. A false is for dial, a true for email.
+     */
+    private boolean pop;
 
 
 
 
     private Intent inte;
 
-    private Intent in;
+    private Intent callIntent;
 
 
     @Override
@@ -70,31 +89,85 @@ public class MainActivity extends AppCompatActivity
             ActivityCompat.requestPermissions(MainActivity.this,new String[]{Manifest.permission.READ_CONTACTS},READ_CONTACT_PERMISSION);
         else
             cloader.execute();
- //       messBt = findViewById(R.id.heraldButton);
         callBt = findViewById(R.id.callButton);
+        callBt.setOnClickListener(new Button.OnClickListener()
+        {
+            public void onClick(View view)
+            {
+                if(!PERS.containsKey(input.getText().toString()))
+                {
+                    Toast.makeText(MainActivity.this,"Found No Such Contact in System Contacts",Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                per = PERS.get(input.getText().toString());
+                if(per.dial.size()==0)
+                {
+                    Toast.makeText(MainActivity.this,"No Plausible Dial for Such Person",Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if(ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CALL_PHONE)!= PackageManager.PERMISSION_GRANTED)
+                    ActivityCompat.requestPermissions(MainActivity.this,new String[]{Manifest.permission.CALL_PHONE},CALL_PHONE_PERMISSION);
+                else
+                {
+                    pop = false;
+                    View vi = findViewById(R.id.pos);
+                    registerForContextMenu(vi);
+                    openContextMenu(findViewById(R.id.pos));
+                    unregisterForContextMenu(vi);
+                }
+            }
+        });
+        messBt = findViewById(R.id.heraldButton);
+        messBt.setOnClickListener(new Button.OnClickListener()
+        {
+            public void onClick(View view)
+            {
+                if(!PERS.containsKey(input.getText().toString()))
+                {
+                    Toast.makeText(MainActivity.this,"Found No Such Contact in System Contacts",Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                per = PERS.get(input.getText().toString());
+                if(per.email.size()==0)
+                {
+                    Toast.makeText(MainActivity.this,"No Plausible Dial for Such Person",Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                pop = true;
+                View vi = findViewById(R.id.pos);
+                registerForContextMenu(vi);
+                openContextMenu(findViewById(R.id.pos));
+                unregisterForContextMenu(vi);
+            }
+        });
+    }
 
+    public void onCreateContextMenu(ContextMenu menu, View view, ContextMenu.ContextMenuInfo info)
+    {
+        super.onCreateContextMenu(menu,view,info);
+        MenuInflater mf = getMenuInflater();
+        mf.inflate(R.menu.pop_menu,menu);
+        pop_up = menu;
+        if(!pop)
+            for(String dial: per.dial)
+                pop_up.add(dial);
+        else
+            for(String email: per.email)
+                pop_up.add(email);
+    }
 
-//        messBt.setOnClickListener(new Button.OnClickListener()
-//        {
-//            public void onClick(View view)
-//            {
-//                inte = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:"+ input.getText()));
-//                inte.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-//                startActivity(inte);
-//            }
-//        });
-//        callBt.setOnClickListener(new Button.OnClickListener()
-//        {
-//            public void onClick(View view)
-//            {
-//                in = new Intent(Intent.ACTION_CALL,Uri.parse("tel:"+input.getText()));
-//                in.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-//                if(ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CALL_PHONE)!= PackageManager.PERMISSION_GRANTED)
-//                    ActivityCompat.requestPermissions(MainActivity.this,new String[]{Manifest.permission.CALL_PHONE},CALL_PHONE_PERMISSION);
-//                else
-//                    startActivity(in);
-//            }
-//        });
+    public boolean onContextItemSelected(MenuItem item)
+    {
+        Intent inte = null;
+        if(!pop)
+        {
+            callIntent = new Intent(Intent.ACTION_CALL,Uri.parse("tel:"+item.getTitle()));
+            callIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        }
+        if(inte!=null)
+            startActivity(inte);
+        pop_up.clear();
+        return true;
     }
 
     public void onRequestPermissionsResult(int requestCode, String[] perms, int[] results)
@@ -105,7 +178,7 @@ public class MainActivity extends AppCompatActivity
             {
                 if(results.length>0&&results[0]==PackageManager.PERMISSION_GRANTED)
                 {
-                    startActivity(in);
+                    startActivity(callIntent);
                 }
                 break;
             }
