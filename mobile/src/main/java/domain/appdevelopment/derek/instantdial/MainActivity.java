@@ -33,6 +33,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * This activity comprises the loose operations InstantDial may perform such as dialing and adverting to email interface persons by contact
+ * information stored in the system contacts. The search for contact allows an autocomplete process but requires significant time for database
+ * query. Such it is achieved on a separate thread and, when matured, silently activated. This activity is not the start of the interface.
+ * The home activity can be adverted by the confidante button of this session.
+ * @author Derek.Li
+ */
 public class MainActivity extends AppCompatActivity
 {
 
