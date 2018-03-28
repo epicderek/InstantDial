@@ -39,9 +39,21 @@ public class MainActivity extends AppCompatActivity
     private static final int CALL_PHONE_PERMISSION = 0;
     private static final int READ_CONTACT_PERMISSION = 1;
 
+    /**
+     * Loader of the other thread of importing all contacts.
+     */
     private ContactLoader cloader;
+    /**
+     * Button for messaging.
+     */
     private Button messBt;
+    /**
+     * Button for calling.
+     */
     private Button callBt;
+    /**
+     *
+     */
     private AutoCompleteTextView input;
     /**
      * The names of persons suggested by the autocomplete according to the given user input name.
@@ -67,13 +79,14 @@ public class MainActivity extends AppCompatActivity
      * The state of the pop_up, whether for dial or email. A false is for dial, a true for email.
      */
     private boolean pop;
-
-
-
-
-    private Intent inte;
-
+    /**
+     * The intent for invoking the call.
+     */
     private Intent callIntent;
+    /**
+     * The intent for sending email to a specific address.
+     */
+    private Intent emailIntent;
 
 
     @Override
@@ -81,14 +94,18 @@ public class MainActivity extends AppCompatActivity
     {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        //Setting up the user input autocomplete setting.
         input = findViewById(R.id.contactView);
         adp = new ArrayAdapter<>(this,R.layout.support_simple_spinner_dropdown_item);
         input.setAdapter(adp);
         cloader = new ContactLoader();
+        //Check the permission and load the contacts.
         if(ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_CONTACTS)!= PackageManager.PERMISSION_GRANTED)
             ActivityCompat.requestPermissions(MainActivity.this,new String[]{Manifest.permission.READ_CONTACTS},READ_CONTACT_PERMISSION);
         else
             cloader.execute();
+
+        //Load the call button.
         callBt = findViewById(R.id.callButton);
         callBt.setOnClickListener(new Button.OnClickListener()
         {
@@ -96,7 +113,7 @@ public class MainActivity extends AppCompatActivity
             {
                 if(!PERS.containsKey(input.getText().toString()))
                 {
-                    Toast.makeText(MainActivity.this,"Found No Such Contact in System Contacts",Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this,"No Such Contact in System",Toast.LENGTH_SHORT).show();
                     return;
                 }
                 per = PERS.get(input.getText().toString());
@@ -117,6 +134,8 @@ public class MainActivity extends AppCompatActivity
                 }
             }
         });
+
+        //Load the messenger button.
         messBt = findViewById(R.id.heraldButton);
         messBt.setOnClickListener(new Button.OnClickListener()
         {
@@ -124,13 +143,13 @@ public class MainActivity extends AppCompatActivity
             {
                 if(!PERS.containsKey(input.getText().toString()))
                 {
-                    Toast.makeText(MainActivity.this,"Found No Such Contact in System Contacts",Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this,"No Such Contact in System",Toast.LENGTH_SHORT).show();
                     return;
                 }
                 per = PERS.get(input.getText().toString());
                 if(per.email.size()==0)
                 {
-                    Toast.makeText(MainActivity.this,"No Plausible Dial for Such Person",Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this,"No Plausible Email for Such Person",Toast.LENGTH_SHORT).show();
                     return;
                 }
                 pop = true;
@@ -142,6 +161,12 @@ public class MainActivity extends AppCompatActivity
         });
     }
 
+    /**
+     * Create a floating context menu for either the pop-up window for dial or email selection. A reference of this menu is captured in the pop_up variable.
+     * @param menu The context menu representing the options of dials or emails of this person.
+     * @param view The text view this menu is associated with.
+     * @param info Standard information regarding this menu.
+     */
     public void onCreateContextMenu(ContextMenu menu, View view, ContextMenu.ContextMenuInfo info)
     {
         super.onCreateContextMenu(menu,view,info);
@@ -156,16 +181,28 @@ public class MainActivity extends AppCompatActivity
                 pop_up.add(email);
     }
 
+    /**
+     * Select an item in the pop-up menu of either the possible dials or emails of a contact.
+     * @param item The dial or email of the person selected by the user.
+     * @return The success of such a selection.
+     */
     public boolean onContextItemSelected(MenuItem item)
     {
-        Intent inte = null;
         if(!pop)
         {
             callIntent = new Intent(Intent.ACTION_CALL,Uri.parse("tel:"+item.getTitle()));
             callIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(callIntent);
         }
-        if(inte!=null)
-            startActivity(inte);
+        else
+        {
+            emailIntent = new Intent(Intent.ACTION_SEND);
+            emailIntent.putExtra(Intent.EXTRA_EMAIL, new String[]{item.getTitle().toString()});
+            emailIntent.putExtra(Intent.EXTRA_SUBJECT, "subject");
+            emailIntent.putExtra(Intent.EXTRA_TEXT, "message");
+            emailIntent.setType("message/rfc822");
+            startActivity(Intent.createChooser(emailIntent, "Choose an Email client :"));
+        }
         pop_up.clear();
         return true;
     }
